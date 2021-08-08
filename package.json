@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "bin": "dist/index.js",
   "scripts": {
-    "build": "tsc",
     "eslint": "eslint $(git ls-files '*.ts' '*.tsx')",
+    "prepare": "tsc",
     "watch": "tsc -w"
   },
   "repository": {
