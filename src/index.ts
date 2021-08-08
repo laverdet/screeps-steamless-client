@@ -7,11 +7,17 @@ import { ArgumentParser } from 'argparse';
 import httpProxy from 'http-proxy';
 import Koa from 'koa';
 import koaConditionalGet from 'koa-conditional-get';
+import jsBeautify from 'js-beautify';
 import JSZip from 'jszip';
+import fetch from 'node-fetch';
 
 // Parse program arguments
 const argv = function() {
 	const parser = new ArgumentParser;
+	parser.add_argument('--beautify', {
+		action: 'store_true',
+		default: false,
+	});
 	parser.add_argument('--package', {
 		nargs: '?',
 		type: 'str',
@@ -23,6 +29,8 @@ const argv = function() {
 	return parser.parse_args();
 }();
 
+const beautify = argv.beautify;
+
 // Create proxy
 const proxy = httpProxy.createProxyServer({
 	changeOrigin: true,
@@ -31,7 +39,7 @@ proxy.on('error', err => console.error(err));
 
 // Locate and read `package.nw`
 const [ data, stat ] = await async function() {
-	const path = argv['--package'] ?? function() {
+	const path = argv.package ?? function() {
 		switch (process.platform) {
 			case 'darwin': return new URL('./Library/Application Support/Steam/steamapps/common/Screeps/package.nw', `${pathToFileURL(os.homedir())}/`);
 			case 'win32': return 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Screeps\\package.nw';
@@ -55,7 +63,7 @@ const lastModified = Math.floor(+stat.mtime / 60000) * 60000;
 
 // Set up koa server
 const koa = new Koa;
-const port = argv['--port'] ?? 8080;
+const port = argv.port ?? 8080;
 const host = 'localhost';
 const server = koa.listen(port, host);
 server.on('error', err => console.error(err));
@@ -132,7 +140,7 @@ addEventListener('beforeunload', () => {
 });
 			</script>` + header);
 			// Remove tracking pixels
-			body = body.replace(/<script[^>]*>[^>]*xsolla[^>]*<\/script>/g, '');
+			body = body.replace(/<script[^>]*>[^>]*xsolla[^>]*<\/script>/g, '<script>xnt = new Proxy(() => xnt, { get: () => xnt })</script>');
 			body = body.replace(/<script[^>]*>[^>]*facebook[^>]*<\/script>/g, '<script>fbq = new Proxy(() => fbq, { get: () => fbq })</script>');
 			body = body.replace(/<script[^>]*>[^>]*google[^>]*<\/script>/g, '<script>ga = new Proxy(() => ga, { get: () => ga })</script>');
 			body = body.replace(/<script[^>]*>[^>]*mxpnl[^>]*<\/script>/g, '<script>mixpanel = new Proxy(() => mixpanel, { get: () => mixpanel })</script>');
@@ -155,10 +163,48 @@ addEventListener('beforeunload', () => {
 					XSOLLA_SANDBOX: false,
 				};
 			`;
-		} else if (path === 'build.min.js' && !/https?:\/\/screeps\.com/.test(info.backend)) {
-			// Replace official CDN with local assets
-			const content = await file.async('text');
-			return content.replace(/https:\/\/d3os7yery2usni\.cloudfront\.net\//g, `${info.backend}/assets/`);
+		} else if (context.path.endsWith('.js')) {
+			let text = await file.async('text');
+			if (path === 'build.min.js') {
+				// Load backend info from underlying server
+				const version = await async function() {
+					try {
+						const response = await fetch(`${info.backend}/api/version`);
+						return JSON.parse(await response.text());
+					} catch (err) {}
+				}();
+
+				// Look for server options payload in build information
+				for (const match of text.matchAll(/\boptions=\{/g)) {
+					for (let ii = match.index!; ii < text.length; ++ii) {
+						if (text.charAt(ii) === '}') {
+							try {
+								const payload = text.substring(match.index!, ii + 1);
+								// eslint-disable-next-line @typescript-eslint/no-unused-vars
+								const holder =
+								// eslint-disable-next-line @typescript-eslint/no-implied-eval
+								new Function(payload);
+								if (payload.includes('apiUrl')) {
+									// Inject `host`, `port`, and `official`
+									const backend = new URL(info.backend);
+									text = `${text.substr(0, ii)},
+										host: ${JSON.stringify(backend.hostname)},
+										port: ${backend.port || '80'},
+										official: ${Boolean(version?.serverData?.shards)},
+									} ${text.substr(ii + 1)}`;
+								}
+								break;
+							} catch (err) {}
+						}
+					}
+				}
+				if (new URL(info.backend).hostname !== 'screeps.com') {
+					// Replace official CDN with local assets
+					text = text.replace(/https:\/\/d3os7yery2usni\.cloudfront\.net\//g, `${info.backend}/assets/`);
+				}
+			}
+			return beautify ? jsBeautify(text) : text;
+
 		} else {
 			// JSZip doesn't implement their read stream correctly and it causes EPIPE crashes. Pass it
 			// through a no-op transform stream first to iron that out.
