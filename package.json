@@ -1,7 +1,7 @@
 {
   "name": "screeps-steamless-client",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "bin": "dist/index.js",
   "scripts": {
     "eslint": "eslint $(git ls-files '*.ts' '*.tsx')",

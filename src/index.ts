@@ -67,8 +67,15 @@ const port = argv.port ?? 8080;
 const host = 'localhost';
 const server = koa.listen(port, host);
 server.on('error', err => console.error(err));
-const extract = (url: string) =>
-	/^\/\((?<backend>[^)]+)\)(?<endpoint>\/.*)$/.exec(url)?.groups;
+const extract = (url: string) => {
+	const groups = /^\/\((?<backend>[^)]+)\)(?<endpoint>\/.*)$/.exec(url)?.groups;
+	if (groups) {
+		return {
+			backend: groups.backend.replace(/\/+$/, ''),
+			endpoint: groups.endpoint,
+		};
+	}
+};
 
 // Serve client assets directly from steam package
 koa.use(koaConditionalGet());
