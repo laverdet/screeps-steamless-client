@@ -59,7 +59,7 @@ await zip.loadAsync(data);
 const { files } = zip;
 
 // HTTP header is only accurate to the minute
-const lastModified = Math.floor(+stat.mtime / 60000) * 60000;
+const lastModified = new Date(Math.floor(+stat.mtime / 60000) * 60000);
 
 // Set up koa server
 const koa = new Koa;
@@ -94,7 +94,7 @@ koa.use(async(context, next) => {
 	}
 
 	// Check cached response based on zip file modification
-	context.set('Last-Modified', `${new Date(lastModified)}`);
+	context.lastModified = lastModified;
 	if (context.fresh) {
 		return;
 	}
