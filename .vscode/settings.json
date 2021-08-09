@@ -7,4 +7,5 @@
 		"node_modules": true,
 	},
 	"files.insertFinalNewline": true,
+	"typescript.enablePromptUseWorkspaceTsdk": true,
 }

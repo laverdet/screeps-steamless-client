@@ -254,7 +254,6 @@ koa.use(async(context, next) => {
 			context.respond = false;
 			context.req.url = info.endpoint;
 			proxy.web(context.req, context.res, {
-				forward: info.backend,
 				target: info.backend,
 			});
 			return;
@@ -269,7 +268,6 @@ server.on('upgrade', (req, socket, head) => {
 	if (info && req.headers.upgrade?.toLowerCase() === 'websocket') {
 		req.url = info.endpoint;
 		proxy.ws(req, socket, head, {
-			forward: info.backend,
 			target: info.backend,
 		});
 		socket.on('error', err => console.error(err));
