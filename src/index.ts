@@ -59,7 +59,7 @@ await zip.loadAsync(data);
 const { files } = zip;
 
 // HTTP header is only accurate to the minute
-const lastModified = new Date(Math.floor(+stat.mtime / 60000) * 60000);
+const lastModified = stat.mtime;
 
 // Set up koa server
 const koa = new Koa;
@@ -139,11 +139,13 @@ if (localStorage['users.code.activeWorld']?.length > 1024 * 1024) {
 		delete localStorage['users.code.activeWorld']
 	}
 }
-addEventListener('beforeunload', () => {
-	if (localStorage.auth === 'null') {
-		document.cookie = 'id=';
-		document.cookie = 'session=';
-	}
+// Send the user to map after login from /register
+addEventListener('message', event => {
+	setTimeout(() => {
+		if (localStorage.auth && localStorage.auth !== '"guest"' && document.location.hash === '#!/register') {
+			document.location.hash = '#!/'
+		}
+	});
 });
 			</script>` + header);
 			// Remove tracking pixels
