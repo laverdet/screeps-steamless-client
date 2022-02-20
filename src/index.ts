@@ -199,7 +199,7 @@ addEventListener('message', event => {
 									text = `${text.substr(0, ii)},
 										host: ${JSON.stringify(backend.hostname)},
 										port: ${backend.port || '80'},
-										official: ${Boolean(version?.serverData?.shards)},
+										official: ${Boolean(version?.serverData?.shards?.[0])},
 									} ${text.substr(ii + 1)}`;
 								}
 								break;
