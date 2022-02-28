@@ -34,7 +34,7 @@ const argv = function() {
 		nargs: '?',
 		type: 'str',
 	});
-	parser.add_argument('--internal_host', {
+	parser.add_argument('--internal_backend', {
 		nargs: '?',
 		type: 'str',
 	});
@@ -42,6 +42,8 @@ const argv = function() {
 }();
 
 const beautify = argv.beautify;
+
+console.log(JSON.stringify(argv))
 
 // Create proxy
 const proxy = httpProxy.createProxyServer({
@@ -198,7 +200,7 @@ addEventListener('message', event => {
 				// Load backend info from underlying server
 				const version = await async function() {
 					try {
-						const response = await fetch(`${argv.internal_host ?? info.backend}/api/version`);
+						const response = await fetch(`${argv.internal_backend ?? info.backend}/api/version`);
 						return JSON.parse(await response.text());
 					} catch (err) {}
 				}();
@@ -275,8 +277,13 @@ koa.use(async(context, next) => {
 		if (info) {
 			context.respond = false;
 			context.req.url = info.endpoint;
+			if (info.endpoint.startsWith("/api/auth")) {
+				const returnUrl = encodeURIComponent(info.backend);
+        context.req.url = `${info.endpoint}${info.endpoint.includes('?') ? '&' : '?'}returnUrl=${returnUrl}`;
+      }
+			console.log(context.req.url)
 			proxy.web(context.req, context.res, {
-				target: argv.internal_host ?? info.backend,
+				target: argv.internal_backend ?? info.backend,
 			});
 			return;
 		}
@@ -290,7 +297,7 @@ server.on('upgrade', (req, socket, head) => {
 	if (info && req.headers.upgrade?.toLowerCase() === 'websocket') {
 		req.url = info.endpoint;
 		proxy.ws(req, socket, head, {
-			target: argv.internal_host ?? info.backend,
+			target: argv.internal_backend ?? info.backend,
 		});
 		socket.on('error', err => console.error(err));
 	} else {
