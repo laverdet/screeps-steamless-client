@@ -43,8 +43,6 @@ const argv = function() {
 
 const beautify = argv.beautify;
 
-console.log(JSON.stringify(argv))
-
 // Create proxy
 const proxy = httpProxy.createProxyServer({
 	changeOrigin: true,
@@ -281,7 +279,6 @@ koa.use(async(context, next) => {
 				const returnUrl = encodeURIComponent(info.backend);
         context.req.url = `${info.endpoint}${info.endpoint.includes('?') ? '&' : '?'}returnUrl=${returnUrl}`;
       }
-			console.log(context.req.url)
 			proxy.web(context.req, context.res, {
 				target: argv.internal_backend ?? info.backend,
 			});
