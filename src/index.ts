@@ -26,6 +26,18 @@ const argv = function() {
 		nargs: '?',
 		type: 'int',
 	});
+	parser.add_argument('--backend', {
+		nargs: '?',
+		type: 'str',
+	});
+	parser.add_argument('--host', {
+		nargs: '?',
+		type: 'str',
+	});
+	parser.add_argument('--internal_backend', {
+		nargs: '?',
+		type: 'str',
+	});
 	return parser.parse_args();
 }();
 
@@ -64,10 +76,16 @@ const lastModified = stat.mtime;
 // Set up koa server
 const koa = new Koa;
 const port = argv.port ?? 8080;
-const host = 'localhost';
+const host = argv.host ?? 'localhost';
 const server = koa.listen(port, host);
 server.on('error', err => console.error(err));
 const extract = (url: string) => {
+	if (argv.backend) {
+		return {
+			backend: argv.backend.replace(/\/+$/, ''),
+			endpoint: url,
+		};
+	}
 	const groups = /^\/\((?<backend>[^)]+)\)(?<endpoint>\/.*)$/.exec(url)?.groups;
 	if (groups) {
 		return {
@@ -157,11 +175,13 @@ addEventListener('message', event => {
 			body = body.replace(/<script[^>]*>[^>]*onRecaptchaLoad[^>]*<\/script>/g, '<script>function onRecaptchaLoad(){}</script>');
 			return body;
 		} else if (path === 'config.js') {
+			const api = argv.backend ? '/api/' : `/(${info.backend})/api/`;
+			const socket = argv.backend ? '/socket/' : `/(${info.backend})/socket/`;
 			// Screeps server config
 			return `
 				var HISTORY_URL = undefined;
-				var API_URL = '/(${info.backend})/api/';
-				var WEBSOCKET_URL = '/(${info.backend})/socket/';
+				var API_URL = '${api}';
+				var WEBSOCKET_URL = '${socket}';
 				var CONFIG = {
 					API_URL: API_URL,
 					HISTORY_URL: HISTORY_URL,
@@ -178,7 +198,7 @@ addEventListener('message', event => {
 				// Load backend info from underlying server
 				const version = await async function() {
 					try {
-						const response = await fetch(`${info.backend}/api/version`);
+						const response = await fetch(`${argv.internal_backend ?? info.backend}/api/version`);
 						return JSON.parse(await response.text());
 					} catch (err) {}
 				}();
@@ -255,8 +275,12 @@ koa.use(async(context, next) => {
 		if (info) {
 			context.respond = false;
 			context.req.url = info.endpoint;
+			if (info.endpoint.startsWith("/api/auth")) {
+				const returnUrl = encodeURIComponent(info.backend);
+        context.req.url = `${info.endpoint}${info.endpoint.includes('?') ? '&' : '?'}returnUrl=${returnUrl}`;
+      }
 			proxy.web(context.req, context.res, {
-				target: info.backend,
+				target: argv.internal_backend ?? info.backend,
 			});
 			return;
 		}
@@ -270,7 +294,7 @@ server.on('upgrade', (req, socket, head) => {
 	if (info && req.headers.upgrade?.toLowerCase() === 'websocket') {
 		req.url = info.endpoint;
 		proxy.ws(req, socket, head, {
-			target: info.backend,
+			target: argv.internal_backend ?? info.backend,
 		});
 		socket.on('error', err => console.error(err));
 	} else {
@@ -278,4 +302,8 @@ server.on('upgrade', (req, socket, head) => {
 	}
 });
 
-console.log(`🌎 Listening -- http://${host}:${port}/(https://screeps.com)/`);
+console.log(
+	`🌎 Listening -- http://${host}:${port}/${
+		argv.backend ? '' : '(https://screeps.com)/'
+	}`
+);
