@@ -219,7 +219,7 @@ addEventListener('message', event => {
 									text = `${text.substr(0, ii)},
 										host: ${JSON.stringify(backend.hostname)},
 										port: ${backend.port || '80'},
-										official: ${Boolean(version?.serverData?.shards?.[0])},
+										official: ${backend.hostname === 'screeps.com'},
 									} ${text.substr(ii + 1)}`;
 								}
 								break;
@@ -229,7 +229,7 @@ addEventListener('message', event => {
 				}
 				if (new URL(info.backend).hostname !== 'screeps.com') {
 					// Replace official CDN with local assets
-					text = text.replace(/https:\/\/d3os7yery2usni\.cloudfront\.net\//g, `${info.backend}/assets/`);
+					text = text.replace(/https:\/\/d3os7yery2usni\.cloudfront\.net\/map\/\w+\//g, `${info.backend}/assets/map/`);
 				}
 			}
 			return beautify ? jsBeautify(text) : text;
@@ -277,8 +277,8 @@ koa.use(async(context, next) => {
 			context.req.url = info.endpoint;
 			if (info.endpoint.startsWith("/api/auth")) {
 				const returnUrl = encodeURIComponent(info.backend);
-        context.req.url = `${info.endpoint}${info.endpoint.includes('?') ? '&' : '?'}returnUrl=${returnUrl}`;
-      }
+				context.req.url = `${info.endpoint}${info.endpoint.includes('?') ? '&' : '?'}returnUrl=${returnUrl}`;
+			}
 			proxy.web(context.req, context.res, {
 				target: argv.internal_backend ?? info.backend,
 			});
