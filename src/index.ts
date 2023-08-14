@@ -196,12 +196,14 @@ addEventListener('message', event => {
 			let text = await file.async('text');
 			if (path === 'build.min.js') {
 				// Load backend info from underlying server
+				const backend = new URL(info.backend);
 				const version = await async function() {
 					try {
 						const response = await fetch(`${argv.internal_backend ?? info.backend}/api/version`);
 						return JSON.parse(await response.text());
 					} catch (err) {}
 				}();
+				const official = backend.hostname === 'screeps.com' || version?.serverData?.features?.find((f: any) => f.name.toLowerCase() === 'official-like');
 
 				// Look for server options payload in build information
 				for (const match of text.matchAll(/\boptions=\{/g)) {
@@ -215,11 +217,10 @@ addEventListener('message', event => {
 								new Function(payload);
 								if (payload.includes('apiUrl')) {
 									// Inject `host`, `port`, and `official`
-									const backend = new URL(info.backend);
 									text = `${text.substr(0, ii)},
 										host: ${JSON.stringify(backend.hostname)},
 										port: ${backend.port || '80'},
-										official: ${backend.hostname === 'screeps.com' || version?.serverData?.features?.find((f: any) => f.name.toLowerCase() === 'official-like')},
+										official: ${official},
 									} ${text.substr(ii + 1)}`;
 								}
 								break;
@@ -229,9 +230,6 @@ addEventListener('message', event => {
 				}
 				if (new URL(info.backend).hostname !== 'screeps.com') {
 					// Replace official CDN with local assets
-					if (Boolean(version?.serverData?.shards?.[0])) {
-						text = text.replace(/https:\/\/d3os7yery2usni\.cloudfront\.net\/map\/\w+\//g, `${info.backend}/assets/map/`);
-					}
 					text = text.replace(/https:\/\/d3os7yery2usni\.cloudfront\.net\//g, `${info.backend}/assets/`);
 				}
 			}
