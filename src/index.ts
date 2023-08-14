@@ -195,6 +195,14 @@ addEventListener('message', event => {
 		} else if (context.path.endsWith('.js')) {
 			let text = await file.async('text');
 			if (path === 'build.min.js') {
+				// Load backend info from underlying server
+				const version = await async function() {
+					try {
+						const response = await fetch(`${argv.internal_backend ?? info.backend}/api/version`);
+						return JSON.parse(await response.text());
+					} catch (err) {}
+				}();
+
 				// Look for server options payload in build information
 				for (const match of text.matchAll(/\boptions=\{/g)) {
 					for (let ii = match.index!; ii < text.length; ++ii) {
@@ -211,7 +219,7 @@ addEventListener('message', event => {
 									text = `${text.substr(0, ii)},
 										host: ${JSON.stringify(backend.hostname)},
 										port: ${backend.port || '80'},
-										official: ${backend.hostname === 'screeps.com'},
+										official: ${backend.hostname === 'screeps.com' || version?.serverData?.features?.find((f: any) => f.name.toLowerCase() === 'official-like')},
 									} ${text.substr(ii + 1)}`;
 								}
 								break;
@@ -220,14 +228,6 @@ addEventListener('message', event => {
 					}
 				}
 				if (new URL(info.backend).hostname !== 'screeps.com') {
-					// Load backend info from underlying server
-					const version = await async function() {
-						try {
-							const response = await fetch(`${argv.internal_backend ?? info.backend}/api/version`);
-							return JSON.parse(await response.text());
-						} catch (err) {}
-					}();
-
 					// Replace official CDN with local assets
 					if (Boolean(version?.serverData?.shards?.[0])) {
 						text = text.replace(/https:\/\/d3os7yery2usni\.cloudfront\.net\/map\/\w+\//g, `${info.backend}/assets/map/`);
