@@ -228,7 +228,10 @@ addEventListener('message', event => {
 						}
 					}
 				}
-				if (new URL(info.backend).hostname !== 'screeps.com') {
+				if (backend.hostname !== 'screeps.com') {
+          // Replace room-history URL
+          text = text.replace(/http:\/\/"\+s\.options\.host\+":"\+s\.options\.port\+"\/room-history/g, `http://${host}:${port}/(${info.backend})/room-history`);
+
 					// Replace official CDN with local assets
 					text = text.replace(/https:\/\/d3os7yery2usni\.cloudfront\.net\//g, `${info.backend}/assets/`);
 				}
