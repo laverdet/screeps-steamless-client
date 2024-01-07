@@ -175,11 +175,12 @@ addEventListener('message', event => {
 			body = body.replace(/<script[^>]*>[^>]*onRecaptchaLoad[^>]*<\/script>/g, '<script>function onRecaptchaLoad(){}</script>');
 			return body;
 		} else if (path === 'config.js') {
+			const history = argv.backend ? '/room-history/' : `/(${info.backend})/room-history/`;
 			const api = argv.backend ? '/api/' : `/(${info.backend})/api/`;
 			const socket = argv.backend ? '/socket/' : `/(${info.backend})/socket/`;
 			// Screeps server config
 			return `
-				var HISTORY_URL = undefined;
+				var HISTORY_URL = '${history}';
 				var API_URL = '${api}';
 				var WEBSOCKET_URL = '${socket}';
 				var CONFIG = {
@@ -228,9 +229,13 @@ addEventListener('message', event => {
 						}
 					}
 				}
-				if (new URL(info.backend).hostname !== 'screeps.com') {
+				if (backend.hostname !== 'screeps.com') {
+					// Replace room-history URL
+					const historyUrl = `http://${host}:${port}` + (argv.backend ? '' : `/(${info.backend})`) + '/room-history';
+					text = text.replace(/http:\/\/"\+s\.options\.host\+":"\+s\.options\.port\+"\/room-history/g, historyUrl);
+
 					// Replace official CDN with local assets
-					text = text.replace(/https:\/\/d3os7yery2usni\.cloudfront\.net\//g, `${info.backend}/assets/`);
+					text = text.replace(/https:\/\/d3os7yery2usni\.cloudfront\.net/g, `${info.backend}/assets`);
 				}
 			}
 			return beautify ? jsBeautify(text) : text;
