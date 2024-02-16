@@ -36,6 +36,7 @@
     "jszip": "3.7.1",
     "koa": "2.13.1",
     "koa-conditional-get": "3.0.0",
-    "node-fetch": "2.6.1"
+    "node-fetch": "2.6.1",
+    "steam-game-path": "^2.2.0"
   }
 }

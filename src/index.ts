@@ -10,6 +10,7 @@ import koaConditionalGet from 'koa-conditional-get';
 import jsBeautify from 'js-beautify';
 import JSZip from 'jszip';
 import fetch from 'node-fetch';
+import { getGamePath } from "steam-game-path";
 
 // Parse program arguments
 const argv = function() {
@@ -52,12 +53,10 @@ proxy.on('error', err => console.error(err));
 // Locate and read `package.nw`
 const [ data, stat ] = await async function() {
 	const path = argv.package ?? function() {
-		switch (process.platform) {
-			case 'darwin': return new URL('./Library/Application Support/Steam/steamapps/common/Screeps/package.nw', `${pathToFileURL(os.homedir())}/`);
-			case 'win32': return 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Screeps\\package.nw';
-			default: return undefined;
-		}
-	}();
+    const steam = getGamePath(464350);
+      if (!steam || !steam.game) return undefined;
+      return steam.game.path + "\\package.nw";
+    }();
 	if (!path) {
 		console.log('Could not find `package.nw`. Please check `--package` argument');
 		process.exit(1);
